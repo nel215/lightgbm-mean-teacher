@@ -46,8 +46,7 @@ class MeanTeacherChain(Chain):
         super(MeanTeacherChain, self).__init__()
         with self.init_scope():
             self.student = model
-        self.teacher = model.copy('copy')
-        self.register_persistent('teacher')
+            self.teacher = model.copy('copy')
 
     def forward(self, train_x, train_y, test_x):
         # TODO: add noise
