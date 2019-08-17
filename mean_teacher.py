@@ -98,7 +98,7 @@ class MeanTeacherUpdater(StandardUpdater):
         loss_func = self.loss_func or optimizer.target
         optimizer.update(loss_func, train_x, train_y, test_x)
 
-        # TODO: update teacher
+        # update teacher
         student = optimizer.target.student
         teacher = optimizer.target.teacher
         teacher_params = {k: v for k, v in teacher.namedparams()}
