@@ -51,7 +51,6 @@ class MeanTeacherChain(Chain):
 
     def forward(self, train_x, train_y, test_x):
         # TODO: add noise
-        # call student before calling teacher to initialize
         student_train_pred = self.student.predict(train_x, raw=True)
         student_loss = self.student.loss(student_train_pred, train_y)
         student_test_pred = self.student.predict(test_x, raw=True)
