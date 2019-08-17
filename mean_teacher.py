@@ -83,7 +83,7 @@ class MeanTeacherUpdater(StandardUpdater):
         super(MeanTeacherUpdater, self).__init__(*args, **kwargs)
 
     def update_core(self):
-        train_iter = self._iterators['train']
+        train_iter = self._iterators['main']
         train_batch = train_iter.next()
         train_arrays = convert._call_converter(
             self.converter, train_batch, self.device)
