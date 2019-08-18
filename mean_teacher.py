@@ -24,6 +24,8 @@ class Model(Chain):
         h = self.embed(x)
         if getattr(chainer.config, 'student', False):
             h += self.xp.random.randn(*h.shape) * 0.1
+        elif getattr(chainer.config, 'teacher', False):
+            h += self.xp.random.randn(*h.shape) * 0.01
 
         h = self.l1(h)
         h = F.relu(h)
@@ -62,13 +64,14 @@ class MeanTeacherChain(Chain):
             student_pred = F.concat(
                 [student_train_pred, student_test_pred], axis=0)
 
-        # teacher doesn't need gradient
-        with chainer.using_config('enable_backprop', False):
-            teacher_train_pred = self.teacher.predict(train_x, raw=True)
-            teacher_loss = self.teacher.loss(teacher_train_pred, train_y)
-            teacher_test_pred = self.teacher.predict(test_x, raw=True)
-            teacher_pred = F.concat(
-                [teacher_train_pred, teacher_test_pred], axis=0)
+        with chainer.using_config('teacher', True):
+            # teacher doesn't need gradient
+            with chainer.using_config('enable_backprop', False):
+                teacher_train_pred = self.teacher.predict(train_x, raw=True)
+                teacher_loss = self.teacher.loss(teacher_train_pred, train_y)
+                teacher_test_pred = self.teacher.predict(test_x, raw=True)
+                teacher_pred = F.concat(
+                    [teacher_train_pred, teacher_test_pred], axis=0)
 
         # TODO: weight
         consistency_loss = F.mean_squared_error(teacher_pred, student_pred)
