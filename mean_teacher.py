@@ -23,7 +23,7 @@ class Model(Chain):
         Args:
             x: (bs, in_size)
         """
-        h = self.embed(x)
+        h = F.dropout(self.embed(x))
         if getattr(chainer.config, 'student', False):
             h += self.xp.random.randn(*h.shape) * 0.1
         elif getattr(chainer.config, 'teacher', False):
