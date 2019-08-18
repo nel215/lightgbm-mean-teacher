@@ -11,8 +11,9 @@ class Model(Chain):
     def __init__(self, in_size: int):
         super(Model, self).__init__()
         with self.init_scope():
-            self.embed = L.EmbedID(in_size, 64)
+            self.embed = L.EmbedID(in_size, 128)
             self.l1 = L.Linear(None, 64)
+            self.bn1 = L.BatchNormalization(64)
             self.l2 = L.Linear(None, 1)
 
     def predict(self, x, raw=False):
@@ -20,8 +21,10 @@ class Model(Chain):
         Args:
             x: (bs, in_size)
         """
-        h = F.dropout(self.embed(x))
-        h = F.dropout(F.relu(self.l1(h)))
+        h = self.embed(x)
+        h = self.l1(h)
+        h = F.relu(h)
+        h = self.bn1(h)
         h = self.l2(h)
         if not raw:
             h = F.sigmoid(h)
