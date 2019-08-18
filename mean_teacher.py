@@ -11,10 +11,12 @@ class Model(Chain):
     def __init__(self, in_size: int):
         super(Model, self).__init__()
         with self.init_scope():
-            self.embed = L.EmbedID(in_size, 128)
+            self.embed = L.EmbedID(in_size, 64)
             self.l1 = L.Linear(None, 64)
             self.bn1 = L.BatchNormalization(64)
-            self.l2 = L.Linear(None, 1)
+            self.l2 = L.Linear(None, 64)
+            self.bn2 = L.BatchNormalization(64)
+            self.l3 = L.Linear(None, 1)
 
     def predict(self, x, raw=False):
         """
@@ -31,6 +33,9 @@ class Model(Chain):
         h = F.relu(h)
         h = self.bn1(h)
         h = self.l2(h)
+        h = F.relu(h)
+        h = self.bn2(h)
+        h = self.l3(h)
         if not raw:
             h = F.sigmoid(h)
         return F.reshape(h, (-1,))
