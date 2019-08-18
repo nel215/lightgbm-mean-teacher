@@ -22,6 +22,9 @@ class Model(Chain):
             x: (bs, in_size)
         """
         h = self.embed(x)
+        if getattr(chainer.config, 'student', False):
+            h += self.xp.random.randn(*h.shape) * 0.1
+
         h = self.l1(h)
         h = F.relu(h)
         h = self.bn1(h)
@@ -52,12 +55,12 @@ class MeanTeacherChain(Chain):
             self.teacher = model.copy('copy')
 
     def forward(self, train_x, train_y, test_x):
-        # TODO: add noise
-        student_train_pred = self.student.predict(train_x, raw=True)
-        student_loss = self.student.loss(student_train_pred, train_y)
-        student_test_pred = self.student.predict(test_x, raw=True)
-        student_pred = F.concat(
-            [student_train_pred, student_test_pred], axis=0)
+        with chainer.using_config('student', True):
+            student_train_pred = self.student.predict(train_x, raw=True)
+            student_loss = self.student.loss(student_train_pred, train_y)
+            student_test_pred = self.student.predict(test_x, raw=True)
+            student_pred = F.concat(
+                [student_train_pred, student_test_pred], axis=0)
 
         # teacher doesn't need gradient
         with chainer.using_config('enable_backprop', False):
