@@ -11,34 +11,29 @@ class Model(Chain):
     def __init__(self, in_size: int):
         super(Model, self).__init__()
         with self.init_scope():
-            self.embed = L.EmbedID(in_size, 16)
-            self.l1 = L.Linear(None, 1)
+            self.l1 = L.SimplifiedDropconnect(
+                None, 64, nobias=True, ratio=0.95)
 
-    def predict(self, x, raw=False):
+    def predict(self, x):
         """
         Args:
             x: (bs, in_size)
         """
-        h = F.dropout(self.embed(x))
-        if getattr(chainer.config, 'student', False):
-            h += self.xp.random.randn(*h.shape) * 0.1
-        elif getattr(chainer.config, 'teacher', False):
-            h += self.xp.random.randn(*h.shape) * 0.01
-
-        h = self.l1(h)
-        if not raw:
-            h = F.sigmoid(h)
+        h = self.l1(x)
+        h = F.mean(h, axis=(1))
+        h = F.sigmoid(h)
         return F.reshape(h, (-1,))
 
     def loss(self, pred_y, true_y):
-        return F.sigmoid_cross_entropy(pred_y, true_y)
+        loss = F.huber_loss(pred_y, true_y.astype('f'), 1.0, reduce='no')
+        return F.mean(loss)
 
     def forward(self, x, y):
         """
         Returns:
             loss:
         """
-        pred = self.predict(x, raw=True)
+        pred = self.predict(x)
         loss = self.loss(pred, y)
         return loss
 
@@ -53,18 +48,18 @@ class MeanTeacherChain(Chain):
 
     def forward(self, train_x, train_y, test_x):
         with chainer.using_config('student', True):
-            student_train_pred = self.student.predict(train_x, raw=True)
+            student_train_pred = self.student.predict(train_x)
             student_loss = self.student.loss(student_train_pred, train_y)
-            student_test_pred = self.student.predict(test_x, raw=True)
+            student_test_pred = self.student.predict(test_x)
             student_pred = F.concat(
                 [student_train_pred, student_test_pred], axis=0)
 
         with chainer.using_config('teacher', True):
             # teacher doesn't need gradient
             with chainer.using_config('enable_backprop', False):
-                teacher_train_pred = self.teacher.predict(train_x, raw=True)
+                teacher_train_pred = self.teacher.predict(train_x)
                 teacher_loss = self.teacher.loss(teacher_train_pred, train_y)
-                teacher_test_pred = self.teacher.predict(test_x, raw=True)
+                teacher_test_pred = self.teacher.predict(test_x)
                 teacher_pred = F.concat(
                     [teacher_train_pred, teacher_test_pred], axis=0)
 
@@ -103,9 +98,7 @@ class MeanTeacherUpdater(StandardUpdater):
         # update teacher
         student = optimizer.target.student
         teacher = optimizer.target.teacher
-        teacher_params = {k: v for k, v in teacher.namedparams()}
-        for name, s in student.namedparams():
-            t = teacher_params[name]
+        for t, s in zip(teacher.params(), student.params()):
             t.data = self.ema_decay * t.data + (1.-self.ema_decay) * s.data
 
         if self.auto_new_epoch and train_iter.is_new_epoch:
